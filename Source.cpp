@@ -1,0 +1,430 @@
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
+
+// Structure to store matrix data
+struct Matrix {
+    int id;
+    int values[10][10];
+    int original[10][10];
+    int rows;
+    int cols;
+    bool exists;
+};
+
+// Structure to store multiplication results
+struct MultiplyResult {
+    bool compatible;
+    int result[10][10];
+    int resultRows;
+    int resultCols;
+    int scalarMultiplications;
+    int additions;
+};
+
+// Structure to store scalar multiplication results
+struct ScalarResult {
+    int scalar;
+    int multiplications;
+    int writes;
+};
+
+// Function prototypes
+int generateUniqueID(const Matrix& matrixA, const Matrix& matrixB);
+void copyMatrix(int dest[][10], const int src[][10], int rows, int cols);
+void displayMatrix(const int mat[][10], int rows, int cols);
+void createMatrix(Matrix& m, char name, const Matrix& opposite);
+bool canMultiply(const Matrix& matrixA, const Matrix& matrixB);
+MultiplyResult multiplyMatrices(const Matrix& matrixA, const Matrix& matrixB);
+ScalarResult scalarMultiply(Matrix& m, int k);
+void restoreMatrix(Matrix& m);
+void clearInputBuffer();
+void pauseMenu();
+
+int main() {
+    srand(time(0));
+
+    Matrix matrixA;
+    matrixA.exists = false;
+    matrixA.id = -1;
+
+    Matrix matrixB;
+    matrixB.exists = false;
+    matrixB.id = -1;
+
+    int choice = -1;
+
+    while (choice != 0) {
+        std::cout << "*************** Matrix Workbench ***************\n";
+        std::cout << "Type a number to choose an action:\n";
+        std::cout << "1. Create Matrix A\n";
+        std::cout << "2. Create Matrix B\n";
+        std::cout << "3. Display the current matrices\n";
+        std::cout << "4. Check multiplication compatibility\n";
+        std::cout << "5. Perform A x B\n";
+        std::cout << "6. Perform B x A\n";
+        std::cout << "7. Multiply a matrix by a scalar\n";
+        std::cout << "8. Restore the original matrices\n";
+        std::cout << "0. Exit\n";
+        std::cout << "Choice: ";
+
+        if (!(std::cin >> choice)) {
+            std::cout << "Invalid input. Please enter a number.\n";
+            clearInputBuffer();
+            continue;
+        }
+        clearInputBuffer();
+
+        switch (choice) {
+        case 1:
+            createMatrix(matrixA, 'A', matrixB);
+            pauseMenu();
+            break;
+
+        case 2:
+            createMatrix(matrixB, 'B', matrixA);
+            pauseMenu();
+            break;
+
+        case 3:
+            std::cout << "------ Current Matrices Report ------\n";
+            if (!matrixA.exists && !matrixB.exists) {
+                std::cout << "Neither Matrix A nor Matrix B has been created yet.\n";
+            } {
+                if (matrixA.exists) {
+                    std::cout << "Matrix A ID: " << matrixA.id << "\n";
+                    std::cout << "Order: " << matrixA.rows << " x " << matrixA.cols << "\n";
+                    displayMatrix(matrixA.values, matrixA.rows, matrixA.cols);
+                }
+                else {
+                    std::cout << "Matrix A has not yet been created.\n";
+                }
+                std::cout << "\n";
+                if (matrixB.exists) {
+                    std::cout << "Matrix B ID: " << matrixB.id << "\n";
+                    std::cout << "Order: " << matrixB.rows << " x " << matrixB.cols << "\n";
+                    displayMatrix(matrixB.values, matrixB.rows, matrixB.cols);
+                }
+                else {
+                    std::cout << "Matrix B has not yet been created.\n";
+                }
+            }
+            pauseMenu();
+            break;
+
+        case 4:
+            std::cout << "------ Compatibility Report ------\n";
+            if (!matrixA.exists || !matrixB.exists) {
+                std::cout << "Error: One or both matrices are missing.\n";
+            }
+            else {
+                std::cout << "Matrix A Order: " << matrixA.rows << " x " << matrixA.cols << "\n";
+                std::cout << "Matrix B Order: " << matrixB.rows << " x " << matrixB.cols << "\n";
+
+                if (matrixA.cols == matrixB.rows) {
+                    std::cout << "A x B: Valid\n";
+                    std::cout << "Result Order: " << matrixA.rows << " x " << matrixB.cols << "\n";
+                }
+                else {
+                    std::cout << "A x B: Not defined\n";
+                }
+
+                if (matrixB.cols == matrixA.rows) {
+                    std::cout << "B x A: Valid\n";
+                    std::cout << "Result Order: " << matrixB.rows << " x " << matrixA.cols << "\n";
+                }
+                else {
+                    std::cout << "B x A: Not defined\n";
+                }
+
+                std::cout << "Note: Even when both products are defined, matrix multiplication is generally not commutative.\n";
+                std::cout << "Theoretical Complexity:\n";
+                std::cout << "  Time Complexity: O(1)\n";
+                std::cout << "  Auxiliary Space: O(1)\n";
+            }
+            pauseMenu();
+            break;
+
+        case 5:
+            std::cout << "------ Matrix Multiplication Report (A x B) ------\n";
+            if (!matrixA.exists || !matrixB.exists) {
+                std::cout << "Error: One or both matrices are missing.\n";
+            }
+            else if (!canMultiply(matrixA, matrixB)) {
+                std::cout << "Error: Matrix multiplication is not defined for these dimensions.\n";
+            }
+            else {
+                std::cout << "Matrix A:\n";
+                displayMatrix(matrixA.values, matrixA.rows, matrixA.cols);
+                std::cout << "Matrix B:\n";
+                displayMatrix(matrixB.values, matrixB.rows, matrixB.cols);
+
+                MultiplyResult res = multiplyMatrices(matrixA, matrixB);
+                std::cout << "A x B:\n";
+                displayMatrix(res.result, res.resultRows, res.resultCols);
+                std::cout << "Result Order: " << res.resultRows << " x " << res.resultCols << "\n";
+                std::cout << "Scalar Multiplications: " << res.scalarMultiplications << "\n";
+                std::cout << "Additions: " << res.additions << "\n";
+
+                std::cout << "Theoretical Complexity:\n";
+                std::cout << "  Time Complexity: O(rA x cA x cB)\n";
+                std::cout << "  For square matrices n x n: O(n^3)\n";
+                std::cout << "  Auxiliary Space: O(rA x cB) for the result matrix\n";
+            }
+            pauseMenu();
+            break;
+
+        case 6:
+            std::cout << "------ Matrix Multiplication Report (B x A) ------\n";
+            if (!matrixA.exists || !matrixB.exists) {
+                std::cout << "Error: One or both matrices are missing.\n";
+            }
+            else if (!canMultiply(matrixB, matrixA)) {
+                std::cout << "Error: Matrix multiplication is not defined for these dimensions.\n";
+            }
+            else {
+                std::cout << "Matrix B:\n";
+                displayMatrix(matrixB.values, matrixB.rows, matrixB.cols);
+                std::cout << "Matrix A:\n";
+                displayMatrix(matrixA.values, matrixA.rows, matrixA.cols);
+
+                MultiplyResult res = multiplyMatrices(matrixB, matrixA);
+                std::cout << "B x A:\n";
+                displayMatrix(res.result, res.resultRows, res.resultCols);
+                std::cout << "Result Order: " << res.resultRows << " x " << res.resultCols << "\n";
+                std::cout << "Scalar Multiplications: " << res.scalarMultiplications << "\n";
+                std::cout << "Additions: " << res.additions << "\n";
+
+                std::cout << "Theoretical Complexity:\n";
+                std::cout << "  Time Complexity: O(rB x cB x cA)\n";
+                std::cout << "  For square matrices n x n: O(n^3)\n";
+                std::cout << "  Auxiliary Space: O(rB x cA) for the result matrix\n";
+            }
+            pauseMenu();
+            break;
+
+        case 7:
+            if (!matrixA.exists && !matrixB.exists) {
+                std::cout << "Error: Neither matrix exists.\n";
+            }
+            else {
+                std::cout << "Select matrix:\n1- Matrix A\n2- Matrix B\nChoice: ";
+                int target;
+                std::cin >> target;
+                clearInputBuffer();
+
+                if ((target == 1 && !matrixA.exists) || (target == 2 && !matrixB.exists) || (target != 1 && target != 2)) {
+                    std::cout << "Invalid or non-existent selection.\n";
+                }
+                else {
+                    int scalarFactor;
+                    std::cout << "Enter scalar value: ";
+                    std::cin >> scalarFactor;
+                    clearInputBuffer();
+
+                    Matrix& chosenMatrix = (target == 1) ? matrixA : matrixB;
+
+                    std::cout << "Before Scalar Multiplication:\n";
+                    displayMatrix(chosenMatrix.values, chosenMatrix.rows, chosenMatrix.cols);
+
+                    ScalarResult sRes = scalarMultiply(chosenMatrix, scalarFactor);
+
+                    std::cout << "After Scalar Multiplication:\n";
+                    displayMatrix(chosenMatrix.values, chosenMatrix.rows, chosenMatrix.cols);
+                    std::cout << "Scalar Multiplications: " << sRes.multiplications << "\n";
+                    std::cout << "Writes: " << sRes.writes << "\n";
+
+                    std::cout << "Theoretical Complexity:\n";
+                    std::cout << "  Time Complexity: O(r x c)\n";
+                    std::cout << "  Auxiliary Space: O(1) if done in place\n";
+                }
+            }
+            pauseMenu();
+            break;
+
+        case 8:
+            if (!matrixA.exists && !matrixB.exists) {
+                std::cout << "No matrices exist to restore.\n";
+            }
+            else {
+                if (matrixA.exists) {
+                    restoreMatrix(matrixA);
+                    std::cout << "Matrix A Restored (ID: " << matrixA.id << ", Order: " << matrixA.rows << "x" << matrixA.cols << "):\n";
+                    displayMatrix(matrixA.values, matrixA.rows, matrixA.cols);
+                }
+                if (matrixB.exists) {
+                    restoreMatrix(matrixB);
+                    std::cout << "Matrix B Restored (ID: " << matrixB.id << ", Order: " << matrixB.rows << "x" << matrixB.cols << "):\n";
+                    displayMatrix(matrixB.values, matrixB.rows, matrixB.cols);
+                }
+                std::cout << "Original matrices restored successfully!\n";
+            }
+            pauseMenu();
+            break;
+
+        case 0:
+            std::cout << "Thank you for using the Matrix Workbench!\nGoodbye!\n";
+            break;
+
+        default:
+            std::cout << "Invalid option. Please choose between 0 and 8.\n";
+            pauseMenu();
+            break;
+        }
+    }
+    return 0;
+}
+
+// Generates a unique 5-digit matrix ID
+int generateUniqueID(const Matrix& matrixA, const Matrix& matrixB) {
+    while (true) {
+        int newId = 10000 + rand() % 90000;
+        if ((!matrixA.exists || matrixA.id != newId) && (!matrixB.exists || matrixB.id != newId)) {
+            return newId;
+        }
+    }
+}
+
+// Deep copies dimensions from source to destination layout
+void copyMatrix(int dest[][10], const int src[][10], int rows, int cols) {
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            dest[i][j] = src[i][j];
+        }
+    }
+}
+
+// Handles output configuration stream formatting
+void displayMatrix(const int mat[][10], int rows, int cols) {
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            std::cout << mat[i][j] << " ";
+        }
+        std::cout << "\n";
+    }
+}
+
+// Interactively sets dimensions, mode, and configurations
+void createMatrix(Matrix& m, char name, const Matrix& opposite) {
+    std::cout << "Enter number of rows for Matrix " << name << " (1-10): ";
+    std::cin >> m.rows;
+    while (m.rows < 1 || m.rows > 10) {
+        std::cout << "Invalid size. Enter rows (1-10): ";
+        std::cin >> m.rows;
+    }
+
+    std::cout << "Enter number of columns for Matrix " << name << " (1-10): ";
+    std::cin >> m.cols;
+    while (m.cols < 1 || m.cols > 10) {
+        std::cout << "Invalid size. Enter columns (1-10): ";
+        std::cin >> m.cols;
+    }
+
+    std::cout << "Choose input method:\n1- Manual\n2- Random\nChoice: ";
+    int method;
+    std::cin >> method;
+
+    if (method == 1) {
+        for (int i = 0; i < m.rows; i++) {
+            for (int j = 0; j < m.cols; j++) {
+                std::cout << "Enter " << name << "[" << i << "][" << j << "]: ";
+                std::cin >> m.values[i][j];
+            }
+        }
+    }
+    else {
+        int minVal, maxVal;
+        std::cout << "Enter minimum value: ";
+        std::cin >> minVal;
+        std::cout << "Enter maximum value: ";
+        std::cin >> maxVal;
+        if (minVal > maxVal) std::swap(minVal, maxVal);
+
+        for (int i = 0; i < m.rows; i++) {
+            for (int j = 0; j < m.cols; j++) {
+                m.values[i][j] = minVal + rand() % (maxVal - minVal + 1);
+            }
+        }
+    }
+    clearInputBuffer();
+
+    m.exists = true;
+    m.id = generateUniqueID(m, opposite);
+    copyMatrix(m.original, m.values, m.rows, m.cols);
+
+    std::cout << "Great! Matrix " << name << " has been created.\n";
+    std::cout << "Matrix " << name << " ID: " << m.id << "\n";
+    std::cout << "Order: " << m.rows << " x " << m.cols << "\n";
+    displayMatrix(m.values, m.rows, m.cols);
+}
+
+// Validates column/row matrix sizes
+bool canMultiply(const Matrix& matrixA, const Matrix& matrixB) {
+    return matrixA.cols == matrixB.rows;
+}
+
+// Iteratively calculates multi-dimensional scalar accumulation
+MultiplyResult multiplyMatrices(const Matrix& matrixA, const Matrix& matrixB) {
+    MultiplyResult res;
+    res.compatible = canMultiply(matrixA, matrixB);
+    res.resultRows = matrixA.rows;
+    res.resultCols = matrixB.cols;
+    res.scalarMultiplications = 0;
+    res.additions = 0;
+
+    for (int i = 0; i < matrixA.rows; i++) {
+        for (int j = 0; j < matrixB.cols; j++) {
+            res.result[i][j] = 0;
+            for (int k = 0; k < matrixA.cols; k++) {
+                res.result[i][j] += matrixA.values[i][k] * matrixB.values[k][j];
+                res.scalarMultiplications++;
+                if (k > 0) {
+                    res.additions++;
+                }
+            }
+        }
+    }
+    return res;
+}
+
+// Evaluates localized single factor multiplication runtime logic
+ScalarResult scalarMultiply(Matrix& m, int k) {
+    ScalarResult res;
+    res.scalar = k;
+    res.multiplications = 0;
+    res.writes = 0;
+
+    for (int i = 0; i < m.rows; i++) {
+        for (int j = 0; j < m.cols; j++) {
+            m.values[i][j] *= k;
+            res.multiplications++;
+            res.writes++;
+        }
+    }
+    return res;
+}
+
+// Reverts tracking buffer back to primary allocation structure
+void restoreMatrix(Matrix& m) {
+    if (m.exists) {
+        copyMatrix(m.values, m.original, m.rows, m.cols);
+    }
+}
+
+// Empties lingering line inputs inside parsing buffers
+void clearInputBuffer() {
+    std::cin.clear();
+    while (std::cin.peek() != '\n' && std::cin.peek() != EOF) {
+        std::cin.get();
+    }
+    if (std::cin.peek() == '\n') {
+        std::cin.get();
+    }
+}
+
+// Prompts buffer pause before drawing main control flow menu
+void pauseMenu() {
+    std::cout << "\nPress enter to return to Main Menu!";
+    std::cin.get();
+}
